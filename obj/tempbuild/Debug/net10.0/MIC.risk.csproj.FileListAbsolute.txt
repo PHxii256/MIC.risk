@@ -1,0 +1,8 @@
+C:\mic\risk backend\MIC.risk\obj\tempbuild\Debug\net10.0\MIC.risk.csproj.AssemblyReference.cache
+C:\mic\risk backend\MIC.risk\obj\tempbuild\Debug\net10.0\rpswa.dswa.cache.json
+C:\mic\risk backend\MIC.risk\obj\tempbuild\Debug\net10.0\MIC.risk.GeneratedMSBuildEditorConfig.editorconfig
+C:\mic\risk backend\MIC.risk\obj\tempbuild\Debug\net10.0\MIC.risk.AssemblyInfoInputs.cache
+C:\mic\risk backend\MIC.risk\obj\tempbuild\Debug\net10.0\MIC.risk.AssemblyInfo.cs
+C:\mic\risk backend\MIC.risk\obj\tempbuild\Debug\net10.0\MIC.risk.csproj.CoreCompileInputs.cache
+C:\mic\risk backend\MIC.risk\obj\tempbuild\Debug\net10.0\MIC.risk.MvcApplicationPartsAssemblyInfo.cs
+C:\mic\risk backend\MIC.risk\obj\tempbuild\Debug\net10.0\MIC.risk.MvcApplicationPartsAssemblyInfo.cache

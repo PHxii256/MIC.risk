@@ -1,0 +1,229 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using MIC.risk.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+
+namespace MIC.risk.Data
+{
+    public class ApplicationDBContext : IdentityDbContext<AppUser>
+    {
+        public ApplicationDBContext(DbContextOptions dbContextOptions)
+        : base(dbContextOptions)
+        {
+
+        }
+        // public DbSet<Stock> Stock { get; set; } = null!;
+        // public DbSet<Comment> Comment { get; set; } = null!;
+
+        public DbSet<Department> Departments => Set<Department>();
+        public DbSet<Employee> Employees => Set<Employee>();
+        public DbSet<RiskSubCategory> RiskSubCategories => Set<RiskSubCategory>();
+        public DbSet<ResourceType> ResourceTypes => Set<ResourceType>();
+        public DbSet<RiskReportEvaluation> RiskReportEvaluations => Set<RiskReportEvaluation>();
+        public DbSet<RiskReport> RiskReports => Set<RiskReport>();
+        public DbSet<RiskReportStatusHistory> RiskReportStatusHistories => Set<RiskReportStatusHistory>();
+        public DbSet<Resource> Resources => Set<Resource>();
+        public DbSet<ResourceEngagement> ResourceEngagements => Set<ResourceEngagement>();
+
+
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+            base.OnModelCreating(builder);
+
+            List<IdentityRole> roles = new List<IdentityRole>
+            {
+                new IdentityRole
+                {
+                    Id = "Admin",
+                    Name = "Admin",
+                    NormalizedName = "ADMIN",
+                    ConcurrencyStamp = "1"
+
+                },
+                new IdentityRole
+                {
+                    Id = "User",
+                    Name = "User",
+                    NormalizedName = "USER",
+                    ConcurrencyStamp = "1"
+                },
+            };
+            builder.Entity<IdentityRole>().HasData(roles);
+
+
+            builder.Entity<Department>(e =>
+            {
+                e.ToTable("Department");
+                e.HasKey(d => d.Id);
+                e.Property(d => d.Name).IsRequired();
+                e.Property(d => d.BranchLocation).IsRequired();
+            });
+
+            builder.Entity<ResourceType>(e =>
+            {
+                e.ToTable("ResourceType");
+                e.HasKey(rt => rt.Name);
+                e.Property(rt => rt.Name).HasMaxLength(100);
+            });
+
+            builder.Entity<RiskSubCategory>(e =>
+            {
+                e.ToTable("RiskSubCategory");
+                e.HasKey(sc => sc.Id);
+                e.Property(sc => sc.Name).IsRequired();
+                e.Property(sc => sc.Category).IsRequired();
+            });
+
+            builder.Entity<Employee>(e =>
+            {
+                e.ToTable("Employee");
+                e.HasKey(emp => emp.Id);
+                e.Property(emp => emp.Name).IsRequired();
+                e.Property(emp => emp.Active).HasDefaultValue(true);
+                e.Property(emp => emp.CreatedAt).HasDefaultValueSql("SYSDATETIMEOFFSET()");
+                e.HasIndex(emp => emp.IdentityUserId).IsUnique();
+
+                // 1:1 relationship with ASP.NET Identity ApplicationUser
+                e.HasOne(emp => emp.IdentityUser)
+                    .WithOne(u => u.EmployeeProfile)
+                    .HasForeignKey<Employee>(emp => emp.IdentityUserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Many:1 relationship with Department
+                e.HasOne(emp => emp.Department)
+                    .WithMany(d => d.Employees)
+                    .HasForeignKey(emp => emp.DeptId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<RiskReportEvaluation>(e =>
+            {
+                e.ToTable("RiskReportEvaluation");
+                e.HasKey(rre => rre.Id);
+
+                // T-SQL Computed Column (Severity * Frequency)
+                e.Property(rre => rre.RiskScore)
+                    .HasComputedColumnSql("[severity] * [frequency]", stored: true);
+
+                e.Property(rre => rre.Priority).HasDefaultValue(1);
+                e.Property(rre => rre.EvaluatedAt).HasDefaultValueSql("SYSDATETIMEOFFSET()");
+
+                e.HasOne(rre => rre.Employee)
+                    .WithMany()
+                    .HasForeignKey(rre => rre.EmpId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<Resource>(e =>
+            {
+                e.ToTable("Resource");
+                e.HasKey(r => r.Id);
+                e.Property(r => r.Name).HasMaxLength(255).IsRequired();
+                e.Property(r => r.Url).HasMaxLength(2048).IsRequired();
+                e.Property(r => r.UploadedAt).HasDefaultValueSql("SYSDATETIMEOFFSET()");
+
+                e.HasOne(r => r.Employee)
+                    .WithMany()
+                    .HasForeignKey(r => r.EmpId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(r => r.ResourceType)
+                    .WithMany()
+                    .HasForeignKey(r => r.ResourceTypeName)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+
+            builder.Entity<RiskReport>(e =>
+            {
+                e.ToTable("RiskReport");
+                e.HasKey(r => r.Id);
+                e.Property(r => r.Status).HasMaxLength(50).IsRequired();
+                e.Property(r => r.SubmittedAt).HasDefaultValueSql("SYSDATETIMEOFFSET()");
+
+                // Enforce 1:1 uniqueness on evaluation references
+                e.HasIndex(r => r.ReportedEvaluationId).IsUnique();
+                e.HasIndex(r => r.AuditorEvaluationId)
+                    .IsUnique()
+                    .HasFilter("[AuditorEvaluationId] IS NOT NULL"); // Filtered index for nullables in SQL Server
+
+                e.HasOne(r => r.Employee)
+                    .WithMany()
+                    .HasForeignKey(r => r.EmpId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(r => r.SubCategory)
+                    .WithMany()
+                    .HasForeignKey(r => r.SubCategoryId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(r => r.ReportedEvaluation)
+                    .WithOne()
+                    .HasForeignKey<RiskReport>(r => r.ReportedEvaluationId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(r => r.AuditorEvaluation)
+                    .WithOne()
+                    .HasForeignKey<RiskReport>(r => r.AuditorEvaluationId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+
+            builder.Entity<RiskReportStatusHistory>(e =>
+            {
+                e.ToTable("RiskReportStatusHistory");
+                e.HasKey(h => h.Id);
+                e.Property(h => h.OldStatus).HasMaxLength(50).IsRequired();
+                e.Property(h => h.NewStatus).HasMaxLength(50).IsRequired();
+                e.Property(h => h.ChangedAt).HasDefaultValueSql("SYSDATETIMEOFFSET()");
+
+                e.HasOne(h => h.Report)
+                    .WithMany(r => r.StatusHistories)
+                    .HasForeignKey(h => h.ReportId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(h => h.ChangedByEmployee)
+                    .WithMany()
+                    .HasForeignKey(h => h.ChangedBy)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.ToTable("RiskReportStatusHistory", t =>
+                {
+                    t.HasCheckConstraint(
+                        "CK_RiskReportStatusHistory_OldStatus",
+                        "[OldStatus] IN ('Submitted', 'InReview', 'Resolved')"
+                    );
+
+                    t.HasCheckConstraint(
+                        "CK_RiskReportStatusHistory_NewStatus",
+                        "[NewStatus] IN ('Submitted', 'InReview', 'Resolved')"
+                    );
+                });
+            });
+
+            builder.Entity<ResourceEngagement>(e =>
+            {
+                e.ToTable("ResourceEngagement");
+                e.HasKey(re => re.Id);
+
+                // Prevent an employee from having duplicate tracking rows for the same resource
+                e.HasIndex(re => new { re.EmpId, re.ResourceId }).IsUnique();
+
+                e.HasOne(re => re.Employee)
+                    .WithMany()
+                    .HasForeignKey(re => re.EmpId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(re => re.Resource)
+                    .WithMany()
+                    .HasForeignKey(re => re.ResourceId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+        }
+    }
+}
