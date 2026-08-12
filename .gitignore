@@ -480,3 +480,5 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+bin/Debug/net10.0/MIC.risk.dll
+bin/Debug/net10.0/MIC.risk.exe
