@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MIC.risk")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+df840e27f88f46d701841eba6164795911e820a5")]
 [assembly: System.Reflection.AssemblyProductAttribute("MIC.risk")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MIC.risk")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -444,3 +444,4 @@ c:\mic\risk backend\MIC.risk\obj\auth-build-check2\runtimes\win\lib\net9.0\Micro
 c:\mic\risk backend\MIC.risk\obj\auth-build-check2\runtimes\win-arm64\native\Microsoft.Data.SqlClient.SNI.dll
 c:\mic\risk backend\MIC.risk\obj\auth-build-check2\runtimes\win-x64\native\Microsoft.Data.SqlClient.SNI.dll
 c:\mic\risk backend\MIC.risk\obj\auth-build-check2\runtimes\win-x86\native\Microsoft.Data.SqlClient.SNI.dll
+C:\mic\risk backend\MIC.risk\obj\Debug\net10.0\MIC.risk.sourcelink.json
