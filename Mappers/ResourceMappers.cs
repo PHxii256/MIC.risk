@@ -16,7 +16,7 @@ namespace MIC.risk.Mappers
                 resource.Name,
                 resource.Employee != null ? resource.Employee.ToDto() : null!,
                 resource.Url,
-                resource.ResourceTypeName,
+                resource.Type,
                 resource.UploadedAt
             );
         }
@@ -28,7 +28,8 @@ namespace MIC.risk.Mappers
                 Name = dto.Name,
                 EmpId = dto.UploadedByEmpId,
                 Url = dto.Url,
-                ResourceTypeName = dto.ResourceTypeName
+                Type = dto.Type,
+                Active = true
             };
         }
 
@@ -39,7 +40,9 @@ namespace MIC.risk.Mappers
                 engagement.Employee != null ? engagement.Employee.ToDto() : null!,
                 engagement.Resource != null ? engagement.Resource.ToDto() : null!,
                 engagement.Viewed,
-                engagement.SurveyCompleted
+                engagement.SurveyCompleted,
+                engagement.ViewedAt,
+                engagement.CompletedAt
             );
         }
     }

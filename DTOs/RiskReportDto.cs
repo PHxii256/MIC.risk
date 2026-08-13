@@ -13,7 +13,6 @@ namespace MIC.risk.DTOs
     );
 
     public record UpdateRiskReportStatusRequestDto(
-        long ChangedByEmpId,
         string NewStatus
     );
 

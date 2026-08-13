@@ -18,9 +18,9 @@ namespace MIC.risk.Models
 
         public string Url { get; set; } = null!;
 
-        // FK to ResourceType
-        public string ResourceTypeName { get; set; } = null!;
-        public ResourceType ResourceType { get; set; } = null!;
+        public string Type { get; set; } = null!;
+
+        public bool Active { get; set; } = true;
 
         public DateTimeOffset UploadedAt { get; set; } = DateTimeOffset.UtcNow;
     }

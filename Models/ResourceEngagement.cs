@@ -17,7 +17,9 @@ namespace MIC.risk.Models
         public long ResourceId { get; set; }
         public Resource Resource { get; set; } = null!;
 
-        public bool Viewed { get; set; }
-        public bool? SurveyCompleted { get; set; }
-    }
+    public bool Viewed { get; set; }
+    public bool? SurveyCompleted { get; set; }
+    public DateTimeOffset? ViewedAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+}
 }

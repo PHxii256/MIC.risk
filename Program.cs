@@ -1,25 +1,35 @@
 using MIC.risk.Authorization;
 using MIC.risk.Data;
 using MIC.risk.Interfaces;
+using MIC.risk.Middleware;
 using MIC.risk.Models;
+using MIC.risk.Service;
+using MIC.risk.Services;
+using MIC.risk.Services.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-// using MIC.risk.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Scalar.AspNetCore;
-using Microsoft.Identity;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
-using MIC.risk.Service;
-using MIC.risk.Services.Interfaces;
-using MIC.risk.Services;
+using Scalar.AspNetCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+var signingKey = builder.Configuration["JWT:SigningKey"]
+    ?? Environment.GetEnvironmentVariable("JWT__SigningKey");
 
-builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+if (string.IsNullOrWhiteSpace(signingKey))
+{
+    throw new InvalidOperationException(
+        "JWT signing key is not configured. Set JWT:SigningKey or environment variable JWT__SigningKey.");
+}
+
+builder.Services.AddControllers().AddNewtonsoftJson(options =>
+{
+    options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+});
+
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer((document, _, _) =>
@@ -40,13 +50,31 @@ builder.Services.AddOpenApi(options =>
         return Task.CompletedTask;
     });
 });
-builder.Services.AddControllers();
-builder.Services.AddDbContext<ApplicationDBContext>((options) =>
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+        if (origins.Length > 0)
+        {
+            policy.WithOrigins(origins)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
+    });
+});
+
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ApplicationDBContext>();
+
+builder.Services.AddDbContext<ApplicationDBContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
-//builder.Services.AddScoped<IStockRepository, StockRepository>();
+
 builder.Services.AddIdentity<AppUser, IdentityRole>().AddEntityFrameworkStores<ApplicationDBContext>();
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -61,35 +89,31 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidAudience = builder.Configuration["JWT:Audience"],
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(
-            System.Text.Encoding.UTF8.GetBytes(builder.Configuration["JWT:SigningKey"] ?? "")
-        )
+        IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(signingKey))
     };
-
 });
 
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddScoped<IRiskReportService, RiskReportService>();
 builder.Services.AddScoped<IAuthorizationHandler, RiskReportOwnerHandler>();
+builder.Services.AddScoped<IRiskService, RiskService>();
+builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+builder.Services.AddScoped<IResourceService, ResourceService>();
+builder.Services.AddScoped<IResourceEngagementService, ResourceEngagementService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<IRiskActionService, RiskActionService>();
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("EditOrViewRiskReport", policy =>
         policy.Requirements.Add(new SameOwnerRequirement()));
 });
 
-builder.Services.AddControllers().AddNewtonsoftJson(options =>
-{
-    options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
-});
-
-
 var app = builder.Build();
 
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-Console.WriteLine("Hello World");
-
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -98,10 +122,13 @@ if (app.Environment.IsDevelopment())
         options.AddPreferredSecuritySchemes("Bearer");
     });
 }
+
 app.UseHttpsRedirection();
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();
-

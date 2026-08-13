@@ -4,6 +4,7 @@ using MIC.risk.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MIC.risk.Migrations
 {
     [DbContext(typeof(ApplicationDBContext))]
-    partial class ApplicationDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260813060717_Resource type as string with check")]
+    partial class Resourcetypeasstringwithcheck
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -157,11 +160,6 @@ namespace MIC.risk.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
-                    b.Property<bool>("Active")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
                     b.Property<long>("EmpId")
                         .HasColumnType("bigint");
 
@@ -204,9 +202,6 @@ namespace MIC.risk.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("datetimeoffset");
-
                     b.Property<long>("EmpId")
                         .HasColumnType("bigint");
 
@@ -219,9 +214,6 @@ namespace MIC.risk.Migrations
                     b.Property<bool>("Viewed")
                         .HasColumnType("bit");
 
-                    b.Property<DateTimeOffset?>("ViewedAt")
-                        .HasColumnType("datetimeoffset");
-
                     b.HasKey("Id");
 
                     b.HasIndex("ResourceId");
@@ -230,56 +222,6 @@ namespace MIC.risk.Migrations
                         .IsUnique();
 
                     b.ToTable("ResourceEngagement", (string)null);
-                });
-
-            modelBuilder.Entity("MIC.risk.Models.RiskAction", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<long>("AssigneeEmpId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetimeoffset")
-                        .HasDefaultValueSql("SYSDATETIMEOFFSET()");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset>("DueDate")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<long>("ReportId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssigneeEmpId");
-
-                    b.HasIndex("ReportId");
-
-                    b.ToTable("RiskAction", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_RiskAction_Status", "[Status] IN ('Pending', 'Completed')");
-                        });
                 });
 
             modelBuilder.Entity("MIC.risk.Models.RiskReport", b =>
@@ -302,9 +244,6 @@ namespace MIC.risk.Migrations
 
                     b.Property<long>("ReportedEvaluationId")
                         .HasColumnType("bigint");
-
-                    b.Property<DateTimeOffset?>("ResolvedAt")
-                        .HasColumnType("datetimeoffset");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -332,10 +271,7 @@ namespace MIC.risk.Migrations
 
                     b.HasIndex("SubCategoryId");
 
-                    b.ToTable("RiskReport", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_RiskReport_Status", "[Status] IN ('Submitted', 'InReview', 'Resolved')");
-                        });
+                    b.ToTable("RiskReport", (string)null);
                 });
 
             modelBuilder.Entity("MIC.risk.Models.RiskReportEvaluation", b =>
@@ -383,14 +319,7 @@ namespace MIC.risk.Migrations
 
                     b.HasIndex("EmpId");
 
-                    b.ToTable("RiskReportEvaluation", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_RiskReportEvaluation_Frequency", "[Frequency] BETWEEN 1 AND 5");
-
-                            t.HasCheckConstraint("CK_RiskReportEvaluation_MeasuresEffectiveness", "[MeasuresEffectiveness] BETWEEN 1 AND 5");
-
-                            t.HasCheckConstraint("CK_RiskReportEvaluation_Severity", "[Severity] BETWEEN 1 AND 5");
-                        });
+                    b.ToTable("RiskReportEvaluation", (string)null);
                 });
 
             modelBuilder.Entity("MIC.risk.Models.RiskReportStatusHistory", b =>
@@ -662,25 +591,6 @@ namespace MIC.risk.Migrations
                     b.Navigation("Employee");
 
                     b.Navigation("Resource");
-                });
-
-            modelBuilder.Entity("MIC.risk.Models.RiskAction", b =>
-                {
-                    b.HasOne("MIC.risk.Models.Employee", "Assignee")
-                        .WithMany()
-                        .HasForeignKey("AssigneeEmpId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("MIC.risk.Models.RiskReport", "Report")
-                        .WithMany()
-                        .HasForeignKey("ReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Assignee");
-
-                    b.Navigation("Report");
                 });
 
             modelBuilder.Entity("MIC.risk.Models.RiskReport", b =>

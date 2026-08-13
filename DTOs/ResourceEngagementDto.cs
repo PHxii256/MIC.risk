@@ -17,7 +17,25 @@ namespace MIC.risk.DTOs
         EmployeeResponseDto Employee,
         ResourceResponseDto Resource,
         bool Viewed,
-        bool? SurveyCompleted
+        bool? SurveyCompleted,
+        DateTimeOffset? ViewedAt,
+        DateTimeOffset? CompletedAt
     );
 
+    public record ResourceEngagementStatsDto(
+        long ResourceId,
+        string ResourceName,
+        string ResourceType,
+        int ViewCount,
+        int QuizCompletionCount,
+        double CompletionRate
+    );
+
+    public record DepartmentEngagementStatsDto(
+        long DepartmentId,
+        string DepartmentName,
+        int ActiveEmployees,
+        int EmployeesWithQuizCompletion,
+        double AwarenessPercentage
+    );
 }

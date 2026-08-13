@@ -4,6 +4,7 @@ using MIC.risk.DTOs;
 using MIC.risk.Mappers;
 using MIC.risk.Models;
 using MIC.risk.Services.Interfaces;
+using MIC.risk.Validation;
 
 namespace MIC.risk.Services;
 
@@ -29,51 +30,99 @@ public class RiskReportService : IRiskReportService
 
     public async Task<RiskReportResponseDto?> GetByIdAsync(long id, CancellationToken cancellationToken = default)
     {
-        var report = await _context.RiskReports
-            .AsNoTracking()
-            .Include(r => r.Employee).ThenInclude(e => e.Department)
-            .Include(r => r.SubCategory)
-            .Include(r => r.ReportedEvaluation).ThenInclude(ev => ev.Employee)
-            .Include(r => r.AuditorEvaluation).ThenInclude(ev => ev!.Employee)
-            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
-
+        var report = await GetEntityByIdAsync(id, cancellationToken);
         return report?.ToDto();
     }
 
-    public async Task<IEnumerable<RiskReportResponseDto>> GetAllAsync(string? status = null, CancellationToken cancellationToken = default)
+    public async Task<PagedResultDto<RiskReportResponseDto>> GetAllAsync(
+        string? status,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
+        var (normalizedPage, normalizedPageSize) = PaginationHelper.Normalize(page, pageSize);
+
         var query = _context.RiskReports
             .AsNoTracking()
             .Include(r => r.Employee).ThenInclude(e => e.Department)
             .Include(r => r.SubCategory)
             .Include(r => r.ReportedEvaluation).ThenInclude(ev => ev.Employee)
             .Include(r => r.AuditorEvaluation).ThenInclude(ev => ev!.Employee)
+            .OrderByDescending(r => r.SubmittedAt)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(status))
         {
+            RiskValidators.ValidateStatus(status);
             query = query.Where(r => r.Status == status);
         }
 
-        var reports = await query.ToListAsync(cancellationToken);
+        var totalCount = await query.CountAsync(cancellationToken);
+        var reports = await query
+            .Skip((normalizedPage - 1) * normalizedPageSize)
+            .Take(normalizedPageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResultDto<RiskReportResponseDto>(
+            reports.Select(r => r.ToDto()),
+            normalizedPage,
+            normalizedPageSize,
+            totalCount,
+            (int)Math.Ceiling(totalCount / (double)normalizedPageSize));
+    }
+
+    public async Task<IEnumerable<RiskReportResponseDto>> GetByEmployeeIdAsync(long empId, CancellationToken cancellationToken = default)
+    {
+        var reports = await _context.RiskReports
+            .AsNoTracking()
+            .Include(r => r.Employee).ThenInclude(e => e.Department)
+            .Include(r => r.SubCategory)
+            .Include(r => r.ReportedEvaluation).ThenInclude(ev => ev.Employee)
+            .Include(r => r.AuditorEvaluation).ThenInclude(ev => ev!.Employee)
+            .Where(r => r.EmpId == empId)
+            .OrderByDescending(r => r.SubmittedAt)
+            .ToListAsync(cancellationToken);
+
         return reports.Select(r => r.ToDto());
     }
 
     public async Task<RiskReportResponseDto> CreateReportAsync(CreateRiskReportRequestDto dto, CancellationToken cancellationToken = default)
     {
-        // Execute atomic transaction for Evaluation + RiskReport creation
+        if (string.IsNullOrWhiteSpace(dto.Description))
+        {
+            throw new InvalidOperationException("Report description is required.");
+        }
+
+        RiskValidators.ValidateEvaluation(dto.Evaluation);
+
+        var subCategory = await _context.RiskSubCategories
+            .FirstOrDefaultAsync(sc => sc.Id == dto.SubCategoryId && sc.Active, cancellationToken);
+        if (subCategory == null)
+        {
+            throw new InvalidOperationException("Subcategory does not exist or is inactive.");
+        }
+
         using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            // 1. Save Initial Evaluation entity first
             var evaluationEntity = dto.Evaluation.ToEntity(dto.EmpId);
             _context.RiskReportEvaluations.Add(evaluationEntity);
             await _context.SaveChangesAsync(cancellationToken);
 
-            // 2. Save Risk Report linking the generated Evaluation ID
             var reportEntity = dto.ToEntity(evaluationEntity.Id);
             _context.RiskReports.Add(reportEntity);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            var initialHistory = new RiskReportStatusHistory
+            {
+                ReportId = reportEntity.Id,
+                ChangedBy = dto.EmpId,
+                OldStatus = "Submitted",
+                NewStatus = "Submitted",
+                ChangedAt = reportEntity.SubmittedAt
+            };
+            _context.RiskReportStatusHistories.Add(initialHistory);
             await _context.SaveChangesAsync(cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
@@ -90,21 +139,27 @@ public class RiskReportService : IRiskReportService
     public async Task<RiskReportResponseDto?> AttachAuditorEvaluationAsync(
         long reportId,
         CreateEvaluationRequestDto dto,
+        long auditorEmpId,
         CancellationToken cancellationToken = default)
     {
+        RiskValidators.ValidateEvaluation(dto);
+
         var report = await _context.RiskReports.FirstOrDefaultAsync(r => r.Id == reportId, cancellationToken);
         if (report == null) return null;
+
+        if (report.AuditorEvaluationId.HasValue)
+        {
+            throw new InvalidOperationException("An auditor evaluation already exists for this report.");
+        }
 
         using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            // Create Auditor Evaluation
-            var evaluationEntity = dto.ToEntity(report.EmpId);
+            var evaluationEntity = dto.ToEntity(auditorEmpId);
             _context.RiskReportEvaluations.Add(evaluationEntity);
             await _context.SaveChangesAsync(cancellationToken);
 
-            // Assign FK
             report.AuditorEvaluationId = evaluationEntity.Id;
             await _context.SaveChangesAsync(cancellationToken);
 
@@ -121,13 +176,16 @@ public class RiskReportService : IRiskReportService
 
     public async Task<RiskReportResponseDto?> UpdateStatusAsync(
         long reportId,
-        UpdateRiskReportStatusRequestDto dto,
+        string newStatus,
+        long changedByEmpId,
         CancellationToken cancellationToken = default)
     {
         var report = await _context.RiskReports.FirstOrDefaultAsync(r => r.Id == reportId, cancellationToken);
         if (report == null) return null;
 
-        if (report.Status == dto.NewStatus)
+        RiskValidators.ValidateStatusTransition(report.Status, newStatus);
+
+        if (report.Status == newStatus)
         {
             return await GetByIdAsync(reportId, cancellationToken);
         }
@@ -136,20 +194,19 @@ public class RiskReportService : IRiskReportService
 
         try
         {
-            // Audit history track
             var history = new RiskReportStatusHistory
             {
                 ReportId = reportId,
-                ChangedBy = dto.ChangedByEmpId,
+                ChangedBy = changedByEmpId,
                 OldStatus = report.Status,
-                NewStatus = dto.NewStatus,
+                NewStatus = newStatus,
                 ChangedAt = DateTimeOffset.UtcNow
             };
 
             _context.RiskReportStatusHistories.Add(history);
 
-            // Update main record status
-            report.Status = dto.NewStatus;
+            report.Status = newStatus;
+            report.ResolvedAt = newStatus == "Resolved" ? DateTimeOffset.UtcNow : null;
 
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -163,17 +220,31 @@ public class RiskReportService : IRiskReportService
         }
     }
 
-    public async Task<IEnumerable<RiskReportStatusHistoryResponseDto>> GetStatusHistoryAsync(
+    public async Task<PagedResultDto<RiskReportStatusHistoryResponseDto>> GetStatusHistoryAsync(
         long reportId,
+        int page,
+        int pageSize,
         CancellationToken cancellationToken = default)
     {
-        var histories = await _context.RiskReportStatusHistories
+        var (normalizedPage, normalizedPageSize) = PaginationHelper.Normalize(page, pageSize);
+
+        var query = _context.RiskReportStatusHistories
             .AsNoTracking()
             .Include(h => h.ChangedByEmployee).ThenInclude(e => e.Department)
             .Where(h => h.ReportId == reportId)
-            .OrderByDescending(h => h.ChangedAt)
+            .OrderByDescending(h => h.ChangedAt);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var histories = await query
+            .Skip((normalizedPage - 1) * normalizedPageSize)
+            .Take(normalizedPageSize)
             .ToListAsync(cancellationToken);
 
-        return histories.Select(h => h.ToDto());
+        return new PagedResultDto<RiskReportStatusHistoryResponseDto>(
+            histories.Select(h => h.ToDto()),
+            normalizedPage,
+            normalizedPageSize,
+            totalCount,
+            (int)Math.Ceiling(totalCount / (double)normalizedPageSize));
     }
 }

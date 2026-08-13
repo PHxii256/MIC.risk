@@ -22,12 +22,12 @@ namespace MIC.risk.Data
         public DbSet<Department> Departments => Set<Department>();
         public DbSet<Employee> Employees => Set<Employee>();
         public DbSet<RiskSubCategory> RiskSubCategories => Set<RiskSubCategory>();
-        public DbSet<ResourceType> ResourceTypes => Set<ResourceType>();
         public DbSet<RiskReportEvaluation> RiskReportEvaluations => Set<RiskReportEvaluation>();
         public DbSet<RiskReport> RiskReports => Set<RiskReport>();
         public DbSet<RiskReportStatusHistory> RiskReportStatusHistories => Set<RiskReportStatusHistory>();
         public DbSet<Resource> Resources => Set<Resource>();
         public DbSet<ResourceEngagement> ResourceEngagements => Set<ResourceEngagement>();
+        public DbSet<RiskAction> RiskActions => Set<RiskAction>();
 
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -63,11 +63,28 @@ namespace MIC.risk.Data
                 e.Property(d => d.BranchLocation).IsRequired();
             });
 
-            builder.Entity<ResourceType>(e =>
+            builder.Entity<Resource>(e =>
             {
-                e.ToTable("ResourceType");
-                e.HasKey(rt => rt.Name);
-                e.Property(rt => rt.Name).HasMaxLength(100);
+                e.ToTable("Resource");
+                e.HasKey(r => r.Id);
+                e.Property(r => r.Name).HasMaxLength(255).IsRequired();
+                e.Property(r => r.Url).HasMaxLength(2048).IsRequired();
+                e.Property(r => r.Type).HasMaxLength(50).IsRequired();
+                e.Property(r => r.Active).HasDefaultValue(true);
+                e.Property(r => r.UploadedAt).HasDefaultValueSql("SYSDATETIMEOFFSET()");
+
+                e.HasOne(r => r.Employee)
+                    .WithMany()
+                    .HasForeignKey(r => r.EmpId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                e.ToTable("Resource", t =>
+                {
+                    t.HasCheckConstraint(
+                        "CK_Resource_Type",
+                        "[Type] IN ('Video', 'Image', 'File', 'Quiz', 'Link')"
+                    );
+                });
             });
 
             builder.Entity<RiskSubCategory>(e =>
@@ -76,6 +93,15 @@ namespace MIC.risk.Data
                 e.HasKey(sc => sc.Id);
                 e.Property(sc => sc.Name).IsRequired();
                 e.Property(sc => sc.Category).IsRequired();
+                e.Property(sc => sc.Active).HasDefaultValue(true);
+
+                e.ToTable("RiskSubCategory", t =>
+               {
+                   t.HasCheckConstraint(
+                       "CK_RiskCategoryName",
+                       "[Category] IN ('Financial', 'Operational', 'Strategic', 'Insurance')"
+                   );
+               });
             });
 
             builder.Entity<Employee>(e =>
@@ -116,27 +142,14 @@ namespace MIC.risk.Data
                     .WithMany()
                     .HasForeignKey(rre => rre.EmpId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                e.ToTable("RiskReportEvaluation", t =>
+                {
+                    t.HasCheckConstraint("CK_RiskReportEvaluation_Severity", "[Severity] BETWEEN 1 AND 5");
+                    t.HasCheckConstraint("CK_RiskReportEvaluation_Frequency", "[Frequency] BETWEEN 1 AND 5");
+                    t.HasCheckConstraint("CK_RiskReportEvaluation_MeasuresEffectiveness", "[MeasuresEffectiveness] BETWEEN 1 AND 5");
+                });
             });
-
-            builder.Entity<Resource>(e =>
-            {
-                e.ToTable("Resource");
-                e.HasKey(r => r.Id);
-                e.Property(r => r.Name).HasMaxLength(255).IsRequired();
-                e.Property(r => r.Url).HasMaxLength(2048).IsRequired();
-                e.Property(r => r.UploadedAt).HasDefaultValueSql("SYSDATETIMEOFFSET()");
-
-                e.HasOne(r => r.Employee)
-                    .WithMany()
-                    .HasForeignKey(r => r.EmpId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                e.HasOne(r => r.ResourceType)
-                    .WithMany()
-                    .HasForeignKey(r => r.ResourceTypeName)
-                    .OnDelete(DeleteBehavior.Restrict);
-            });
-
 
             builder.Entity<RiskReport>(e =>
             {
@@ -170,6 +183,14 @@ namespace MIC.risk.Data
                     .WithOne()
                     .HasForeignKey<RiskReport>(r => r.AuditorEvaluationId)
                     .OnDelete(DeleteBehavior.SetNull);
+
+                e.ToTable("RiskReport", t =>
+                {
+                    t.HasCheckConstraint(
+                        "CK_RiskReport_Status",
+                        "[Status] IN ('Submitted', 'InReview', 'Resolved')"
+                    );
+                });
             });
 
 
@@ -201,6 +222,33 @@ namespace MIC.risk.Data
                     t.HasCheckConstraint(
                         "CK_RiskReportStatusHistory_NewStatus",
                         "[NewStatus] IN ('Submitted', 'InReview', 'Resolved')"
+                    );
+                });
+            });
+
+            builder.Entity<RiskAction>(e =>
+            {
+                e.ToTable("RiskAction");
+                e.HasKey(a => a.Id);
+                e.Property(a => a.Title).HasMaxLength(255).IsRequired();
+                e.Property(a => a.Status).HasMaxLength(50).IsRequired();
+                e.Property(a => a.CreatedAt).HasDefaultValueSql("SYSDATETIMEOFFSET()");
+
+                e.HasOne(a => a.Report)
+                    .WithMany()
+                    .HasForeignKey(a => a.ReportId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(a => a.Assignee)
+                    .WithMany()
+                    .HasForeignKey(a => a.AssigneeEmpId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.ToTable("RiskAction", t =>
+                {
+                    t.HasCheckConstraint(
+                        "CK_RiskAction_Status",
+                        "[Status] IN ('Pending', 'Completed')"
                     );
                 });
             });

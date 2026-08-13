@@ -9,7 +9,13 @@ namespace MIC.risk.DTOs
     string Name,
     long UploadedByEmpId,
     string Url,
-    string ResourceTypeName
+    string Type
+    );
+
+    public record UpdateResourceRequestDto(
+        string Name,
+        string Url,
+        string Type
     );
 
     public record ResourceResponseDto(
@@ -17,10 +23,7 @@ namespace MIC.risk.DTOs
         string Name,
         EmployeeResponseDto UploadedBy,
         string Url,
-        string ResourceTypeName,
+        string Type,
         DateTimeOffset UploadedAt
-    );
-    public record ResourceTypeResponseDto(
-        string Name
     );
 }

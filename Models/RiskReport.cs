@@ -28,6 +28,7 @@ namespace MIC.risk.Models
         public string Description { get; set; } = null!;
         public string Status { get; set; } = "Submitted";
         public DateTimeOffset SubmittedAt { get; set; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset? ResolvedAt { get; set; }
 
         // Navigation collection to audit trail
         public ICollection<RiskReportStatusHistory> StatusHistories { get; set; } = new List<RiskReportStatusHistory>();

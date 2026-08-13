@@ -10,7 +10,9 @@ namespace MIC.risk.Models
     {
         public long Id { get; set; }
         [Column("Name")]
-        public string Name { get; set; } = null!;
-        public string Category { get; set; } = null!;
+
+        public required string Name { get; set; } = null!;
+        public required string Category { get; set; } = null!;
+        public bool Active { get; set; } = true;
     }
 }

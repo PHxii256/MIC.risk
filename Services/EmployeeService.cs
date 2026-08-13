@@ -30,6 +30,17 @@ public class EmployeeService : IEmployeeService
         return employee?.ToDto();
     }
 
+    public async Task<EmployeeResponseDto?> GetByIdentityUserIdAsync(string identityUserId, CancellationToken cancellationToken = default)
+    {
+        var employee = await _context.Employees
+            .AsNoTracking()
+            .Include(e => e.Department)
+            .Include(e => e.IdentityUser)
+            .FirstOrDefaultAsync(e => e.IdentityUserId == identityUserId, cancellationToken);
+
+        return employee?.ToDto();
+    }
+
     public async Task<IEnumerable<EmployeeResponseDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var employees = await _context.Employees
@@ -117,5 +128,39 @@ public class EmployeeService : IEmployeeService
         await _context.SaveChangesAsync(cancellationToken);
 
         return true;
+    }
+
+    public async Task EnsureActiveByIdentityUserIdAsync(string identityUserId, CancellationToken cancellationToken = default)
+    {
+        var employee = await _context.Employees
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.IdentityUserId == identityUserId, cancellationToken);
+
+        if (employee == null)
+        {
+            throw new InvalidOperationException("No employee profile linked to the current user.");
+        }
+
+        if (!employee.Active)
+        {
+            throw new UnauthorizedAccessException("Your employee account is inactive.");
+        }
+    }
+
+    public async Task EnsureActiveByIdAsync(long empId, CancellationToken cancellationToken = default)
+    {
+        var employee = await _context.Employees
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == empId, cancellationToken);
+
+        if (employee == null)
+        {
+            throw new InvalidOperationException($"Employee with ID {empId} does not exist.");
+        }
+
+        if (!employee.Active)
+        {
+            throw new UnauthorizedAccessException("The employee account is inactive.");
+        }
     }
 }

@@ -27,28 +27,5 @@ namespace MIC.risk.Mappers
                 BranchLocation = dto.BranchLocation
             };
         }
-
-        public static RiskSubcategoryResponseDto ToDto(this RiskSubCategory subCategory)
-        {
-            return new RiskSubcategoryResponseDto(
-                subCategory.Id,
-                subCategory.Name,
-                subCategory.Category
-            );
-        }
-
-        public static RiskSubCategory ToEntity(this CreateRiskSubcategoryRequestDto dto)
-        {
-            return new RiskSubCategory
-            {
-                Name = dto.Name,
-                Category = dto.Category
-            };
-        }
-
-        public static ResourceTypeResponseDto ToDto(this ResourceType resourceType)
-        {
-            return new ResourceTypeResponseDto(resourceType.Name);
-        }
     }
 }

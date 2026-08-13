@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace MIC.risk.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/employee")]
 public class EmployeeController : ControllerBase
@@ -59,6 +60,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPut("{id:long}")]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(EmployeeResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -81,6 +83,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPatch("{id:long}/toggle-active")]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ToggleActive(long id, CancellationToken cancellationToken)
