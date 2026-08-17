@@ -15,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -103,8 +104,36 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["JWT:Issuer"],
         ValidateAudience = true,
         ValidAudience = builder.Configuration["JWT:Audience"],
+        ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(signingKey))
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var userId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                context.Fail("The token does not identify an employee account.");
+                return;
+            }
+
+            var dbContext = context.HttpContext.RequestServices
+                .GetRequiredService<ApplicationDBContext>();
+
+            var isActiveEmployee = await dbContext.Employees
+                .AsNoTracking()
+                .AnyAsync(
+                    employee => employee.IdentityUserId == userId && employee.Active,
+                    context.HttpContext.RequestAborted);
+
+            if (!isActiveEmployee)
+            {
+                context.Fail("The employee account is inactive.");
+            }
+        }
     };
 });
 
