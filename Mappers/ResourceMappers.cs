@@ -11,12 +11,19 @@ namespace MIC.risk.Mappers
     {
         public static ResourceResponseDto ToDto(this Resource resource)
         {
+            if (resource.Employee == null)
+            {
+                throw new InvalidOperationException(
+                    $"Resource '{resource.Name}' (ID {resource.Id}) is missing its uploader employee record.");
+            }
+
             return new ResourceResponseDto(
                 resource.Id,
                 resource.Name,
-                resource.Employee != null ? resource.Employee.ToDto() : null!,
+                resource.Employee.ToDto(),
                 resource.Url,
                 resource.Type,
+                resource.Description,
                 resource.UploadedAt
             );
         }
@@ -29,6 +36,7 @@ namespace MIC.risk.Mappers
                 EmpId = dto.UploadedByEmpId,
                 Url = dto.Url,
                 Type = dto.Type,
+                Description = dto.Description,
                 Active = true
             };
         }

@@ -6,16 +6,16 @@ using System.Threading.Tasks;
 namespace MIC.risk.DTOs
 {
     public record CreateResourceRequestDto(
-    string Name,
-    long UploadedByEmpId,
-    string Url,
-    string Type
+        string Name,
+        long UploadedByEmpId,
+        string Url,
+        string Type,
+        string? Description = null
     );
 
-    public record UpdateResourceRequestDto(
-        string Name,
-        string Url,
-        string Type
+    public record PatchResourceRequestDto(
+        string? Name = null,
+        string? Description = null
     );
 
     public record ResourceResponseDto(
@@ -24,6 +24,7 @@ namespace MIC.risk.DTOs
         EmployeeResponseDto UploadedBy,
         string Url,
         string Type,
+        string? Description,
         DateTimeOffset UploadedAt
     );
 }

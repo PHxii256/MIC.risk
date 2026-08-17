@@ -61,6 +61,7 @@ namespace MIC.risk.Data
                 e.HasKey(d => d.Id);
                 e.Property(d => d.Name).IsRequired();
                 e.Property(d => d.BranchLocation).IsRequired();
+                e.HasIndex(d => new { d.Name, d.BranchLocation }).IsUnique();
             });
 
             builder.Entity<Resource>(e =>
@@ -70,6 +71,7 @@ namespace MIC.risk.Data
                 e.Property(r => r.Name).HasMaxLength(255).IsRequired();
                 e.Property(r => r.Url).HasMaxLength(2048).IsRequired();
                 e.Property(r => r.Type).HasMaxLength(50).IsRequired();
+                e.Property(r => r.Description).HasMaxLength(2000);
                 e.Property(r => r.Active).HasDefaultValue(true);
                 e.Property(r => r.UploadedAt).HasDefaultValueSql("SYSDATETIMEOFFSET()");
 

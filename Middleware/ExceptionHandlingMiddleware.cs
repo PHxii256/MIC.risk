@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace MIC.risk.Middleware;
@@ -33,6 +34,8 @@ public class ExceptionHandlingMiddleware
         {
             InvalidOperationException => (HttpStatusCode.BadRequest, exception.Message),
             DbUpdateException => (HttpStatusCode.BadRequest, "A database update error occurred. Check your input and try again."),
+            SqlException sqlEx when sqlEx.Message.Contains("Invalid column name", StringComparison.OrdinalIgnoreCase)
+                => (HttpStatusCode.InternalServerError, "Database schema is out of date. Run 'dotnet ef database update' and restart the app."),
             UnauthorizedAccessException => (HttpStatusCode.Forbidden, exception.Message),
             _ => (HttpStatusCode.InternalServerError, "An unexpected error occurred.")
         };

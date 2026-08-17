@@ -445,3 +445,6 @@ c:\mic\risk backend\MIC.risk\obj\auth-build-check2\runtimes\win-arm64\native\Mic
 c:\mic\risk backend\MIC.risk\obj\auth-build-check2\runtimes\win-x64\native\Microsoft.Data.SqlClient.SNI.dll
 c:\mic\risk backend\MIC.risk\obj\auth-build-check2\runtimes\win-x86\native\Microsoft.Data.SqlClient.SNI.dll
 C:\mic\risk backend\MIC.risk\obj\Debug\net10.0\MIC.risk.sourcelink.json
+C:\mic\risk backend\MIC.risk\bin\Debug\net10.0\Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore.dll
+C:\mic\risk backend\MIC.risk\bin\Debug\net10.0\MIC.risk.staticwebassets.runtime.json
+C:\mic\risk backend\MIC.risk\obj\Debug\net10.0\compressed\c22i9ucd0j-{0}-0qf98pwtwr-0qf98pwtwr.gz

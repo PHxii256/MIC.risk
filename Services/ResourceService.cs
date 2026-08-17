@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using MIC.risk.Data;
 using MIC.risk.DTOs;
+using MIC.risk.Interfaces;
 using MIC.risk.Mappers;
 using MIC.risk.Services.Interfaces;
+using Microsoft.AspNetCore.Http;
 
 namespace MIC.risk.Services;
 
@@ -14,10 +16,12 @@ public class ResourceService : IResourceService
     };
 
     private readonly ApplicationDBContext _context;
+    private readonly IFileStorageService _fileStorageService;
 
-    public ResourceService(ApplicationDBContext context)
+    public ResourceService(ApplicationDBContext context, IFileStorageService fileStorageService)
     {
         _context = context;
+        _fileStorageService = fileStorageService;
     }
 
     public async Task<IEnumerable<ResourceResponseDto>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -61,7 +65,7 @@ public class ResourceService : IResourceService
         return (await GetByIdAsync(entity.Id, cancellationToken))!;
     }
 
-    public async Task<ResourceResponseDto?> UpdateAsync(long id, UpdateResourceRequestDto dto, CancellationToken cancellationToken = default)
+    public async Task<ResourceResponseDto?> PatchAsync(long id, PatchResourceRequestDto dto, CancellationToken cancellationToken = default)
     {
         var resource = await _context.Resources.FirstOrDefaultAsync(r => r.Id == id && r.Active, cancellationToken);
         if (resource == null)
@@ -69,11 +73,29 @@ public class ResourceService : IResourceService
             return null;
         }
 
-        ValidateResource(dto.Name, dto.Url, dto.Type);
+        var hasName = dto.Name is not null;
+        var hasDescription = dto.Description is not null;
 
-        resource.Name = dto.Name;
-        resource.Url = dto.Url;
-        resource.Type = dto.Type;
+        if (!hasName && !hasDescription)
+        {
+            throw new InvalidOperationException("Provide at least one of name or description to update.");
+        }
+
+        if (hasName)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Name))
+            {
+                throw new InvalidOperationException("Resource name cannot be blank.");
+            }
+
+            resource.Name = dto.Name;
+        }
+
+        if (hasDescription)
+        {
+            resource.Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description;
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, cancellationToken);
@@ -90,6 +112,25 @@ public class ResourceService : IResourceService
         resource.Active = false;
         await _context.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    public async Task<ResourceResponseDto> UploadAsync(
+        long uploadedByEmpId,
+        string name,
+        IFormFile file,
+        string? description = null,
+        CancellationToken cancellationToken = default)
+    {
+        var stored = await _fileStorageService.SaveAsync(file, cancellationToken);
+
+        var dto = new CreateResourceRequestDto(
+            name,
+            uploadedByEmpId,
+            stored.RelativeUrl,
+            stored.ResourceType,
+            description);
+
+        return await CreateAsync(dto, cancellationToken);
     }
 
     private static void ValidateResource(string name, string url, string type)

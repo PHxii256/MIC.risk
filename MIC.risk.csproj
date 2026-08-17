@@ -17,4 +17,11 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10"/>
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.10"/>
   </ItemGroup>
+  <ItemGroup>
+    <Watch Remove="wwwroot/**" />
+    <Content Update="wwwroot/uploads/**">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <Watch>false</Watch>
+    </Content>
+  </ItemGroup>
 </Project>

@@ -3,11 +3,13 @@ using MIC.risk.Data;
 using MIC.risk.Interfaces;
 using MIC.risk.Middleware;
 using MIC.risk.Models;
+using MIC.risk.Options;
 using MIC.risk.Service;
 using MIC.risk.Services;
 using MIC.risk.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -68,6 +70,19 @@ builder.Services.AddCors(options =>
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ApplicationDBContext>();
 
+builder.Services.Configure<FileUploadOptions>(
+    builder.Configuration.GetSection(FileUploadOptions.SectionName));
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    var maxUploadBytes = builder.Configuration
+        .GetSection(FileUploadOptions.SectionName)
+        .GetValue<long?>(nameof(FileUploadOptions.MaxFileSizeBytes))
+        ?? 10 * 1024 * 1024;
+
+    options.MultipartBodyLengthLimit = maxUploadBytes;
+});
+
 builder.Services.AddDbContext<ApplicationDBContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -100,6 +115,7 @@ builder.Services.AddScoped<IAuthorizationHandler, RiskReportOwnerHandler>();
 builder.Services.AddScoped<IRiskService, RiskService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<IResourceService, ResourceService>();
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<IResourceEngagementService, ResourceEngagementService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IRiskActionService, RiskActionService>();
@@ -112,6 +128,12 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 
+var webRootPath = app.Environment.WebRootPath;
+if (!string.IsNullOrWhiteSpace(webRootPath))
+{
+    Directory.CreateDirectory(Path.Combine(webRootPath, "uploads"));
+}
+
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
@@ -122,8 +144,12 @@ if (app.Environment.IsDevelopment())
         options.AddPreferredSecuritySchemes("Bearer");
     });
 }
+else
+{
+    app.UseHttpsRedirection();
+}
 
-app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();

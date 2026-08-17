@@ -20,6 +20,8 @@ namespace MIC.risk.Models
 
         public string Type { get; set; } = null!;
 
+        public string? Description { get; set; }
+
         public bool Active { get; set; } = true;
 
         public DateTimeOffset UploadedAt { get; set; } = DateTimeOffset.UtcNow;

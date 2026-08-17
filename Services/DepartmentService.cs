@@ -20,6 +20,7 @@ public class DepartmentService : IDepartmentService
         var departments = await _context.Departments
             .AsNoTracking()
             .OrderBy(d => d.Name)
+            .ThenBy(d => d.BranchLocation)
             .ToListAsync(cancellationToken);
 
         return departments.Select(d => d.ToDto());
@@ -36,14 +37,12 @@ public class DepartmentService : IDepartmentService
 
     public async Task<DepartmentResponseDto> CreateAsync(CreateDepartmentRequestDto dto, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(dto.Name))
-        {
-            throw new InvalidOperationException("Department name is required.");
-        }
+        ValidateDepartment(dto);
 
-        if (string.IsNullOrWhiteSpace(dto.BranchLocation))
+        if (await DepartmentExistsAsync(dto.Name, dto.BranchLocation, excludeId: null, cancellationToken))
         {
-            throw new InvalidOperationException("Branch location is required.");
+            throw new InvalidOperationException(
+                $"A department named '{dto.Name}' already exists at branch location '{dto.BranchLocation}'.");
         }
 
         var entity = dto.ToEntity();
@@ -61,6 +60,23 @@ public class DepartmentService : IDepartmentService
             return null;
         }
 
+        ValidateDepartment(dto);
+
+        if (await DepartmentExistsAsync(dto.Name, dto.BranchLocation, excludeId: id, cancellationToken))
+        {
+            throw new InvalidOperationException(
+                $"A department named '{dto.Name}' already exists at branch location '{dto.BranchLocation}'.");
+        }
+
+        department.Name = dto.Name;
+        department.BranchLocation = dto.BranchLocation;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return department.ToDto();
+    }
+
+    private static void ValidateDepartment(CreateDepartmentRequestDto dto)
+    {
         if (string.IsNullOrWhiteSpace(dto.Name))
         {
             throw new InvalidOperationException("Department name is required.");
@@ -70,11 +86,18 @@ public class DepartmentService : IDepartmentService
         {
             throw new InvalidOperationException("Branch location is required.");
         }
+    }
 
-        department.Name = dto.Name;
-        department.BranchLocation = dto.BranchLocation;
-        await _context.SaveChangesAsync(cancellationToken);
-
-        return department.ToDto();
+    private async Task<bool> DepartmentExistsAsync(
+        string name,
+        string branchLocation,
+        long? excludeId,
+        CancellationToken cancellationToken)
+    {
+        return await _context.Departments.AnyAsync(
+            d => d.Name == name
+                && d.BranchLocation == branchLocation
+                && (excludeId == null || d.Id != excludeId),
+            cancellationToken);
     }
 }
